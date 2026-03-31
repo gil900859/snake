@@ -40,8 +40,6 @@ function main() {
 }
 
 function detectBrowserUrlWhitespaceEscaping() {
-  // Write two Braille whitespace characters to the hash because Firefox doesn't
-  // escape single WS chars between words.
   history.replaceState(null, null, '#' + BRAILLE_SPACE + BRAILLE_SPACE)
   if (location.hash.indexOf(BRAILLE_SPACE) == -1) {
     console.warn('Browser is escaping whitespace characters on URL')
@@ -53,18 +51,13 @@ function detectBrowserUrlWhitespaceEscaping() {
 }
 
 function cleanUrl() {
-  // In order to have the most space for the game, shown on the URL hash,
-  // remove all query string parameters and trailing / from the URL.
   history.replaceState(null, null, location.pathname.replace(/\b\/$/, ''));
 }
 
 function setupEventHandlers() {
   var directionsByKey = {
-    // Arrows
     37: LEFT, 38: UP, 39: RIGHT, 40: DOWN,
-    // WASD
     87: UP, 65: LEFT, 83: DOWN, 68: RIGHT,
-    // hjkl
     75: UP, 72: LEFT, 74: DOWN, 76: RIGHT
   };
 
@@ -75,9 +68,6 @@ function setupEventHandlers() {
     }
   };
 
-  // Use touchstart instead of mousedown because these arrows are only shown on
-  // touch devices, and also because there is a delay between touchstart and
-  // mousedown on those devices, and the game should respond ASAP.
   $('#up').ontouchstart = function () { changeDirection(UP) };
   $('#down').ontouchstart = function () { changeDirection(DOWN) };
   $('#left').ontouchstart = function () { changeDirection(LEFT) };
@@ -107,9 +97,6 @@ function setupEventHandlers() {
       content.classList.remove('hidden');
       expandable.classList.toggle('expanded');
     };
-    // Hide the expand button or the content when the animation ends so those
-    // elements are not interactive anymore.
-    // Surely there's a way to do this with CSS animations more directly.
     expandable.ontransitionend = function () {
       var expanded = expandable.classList.contains('expanded');
       expand.classList.toggle('hidden', expanded);
@@ -122,9 +109,6 @@ function initUrlRevealed() {
   setUrlRevealed(Boolean(localStorage.urlRevealed));
 }
 
-// Some browsers don't display the page URL, either partially (e.g. Safari) or
-// entirely (e.g. mobile in-app web-views). To make the game playable in such
-// cases, the player can choose to "reveal" the URL within the page body.
 function setUrlRevealed(value) {
   urlRevealed = value;
   $('#url-container').classList.toggle('invisible', !urlRevealed);
@@ -175,7 +159,6 @@ function updateWorld() {
     setCellAt(tail.x, tail.y, null);
   }
 
-  // Advance head after tail so it can occupy the same cell on next tick.
   setCellAt(newX, newY, SNAKE_CELL);
   snake.unshift({x: newX, y: newY});
 
@@ -199,29 +182,17 @@ function drawWorld() {
   var hash = '#|' + gridString() + '|[score:' + currentScore() + ']';
 
   if (urlRevealed) {
-    // Use the original game representation on the on-DOM view, as there are no
-    // escaping issues there.
     $('#url').textContent = location.href.replace(/#.*$/, '') + hash;
   }
 
-  // Modern browsers escape whitespace characters on the address bar URL for
-  // security reasons. In case this browser does that, replace the empty Braille
-  // character with a non-whitespace (and hopefully non-intrusive) symbol.
   if (whitespaceReplacementChar) {
     hash = hash.replace(/\u2800/g, whitespaceReplacementChar);
   }
 
   history.replaceState(null, null, hash);
 
-  // Some browsers have a rate limit on history.replaceState() calls, resulting
-  // in the URL not updating at all for a couple of seconds. In those cases,
-  // location.hash is updated directly, which is unfortunate, as it causes a new
-  // navigation entry to be created each time, effectively hijacking the user's
-  // back button.
   if (decodeURIComponent(location.hash) !== hash) {
-    console.warn(
-      'history.replaceState() throttling detected. Using location.hash fallback'
-    );
+    console.warn('history.replaceState() throttling detected. Using location.hash fallback');
     location.hash = hash;
   }
 }
@@ -229,10 +200,6 @@ function drawWorld() {
 function gridString() {
   var str = '';
   for (var x = 0; x < GRID_WIDTH; x += 2) {
-    // Unicode Braille patterns are 256 code points going from 0x2800 to 0x28FF.
-    // They follow a binary pattern where the bits are, from least significant
-    // to most: ⠁⠂⠄⠈⠐⠠⡀⢀
-    // So, for example, 147 (10010011) corresponds to ⢓
     var n = 0
       | bitAt(x, 0) << 0
       | bitAt(x, 1) << 1
@@ -248,7 +215,6 @@ function gridString() {
 }
 
 function tickTime() {
-  // Game speed increases as snake grows.
   var start = 125;
   var end = 75;
   return start + snake.length * (end - start) / grid.length;
@@ -272,14 +238,10 @@ function setCellAt(x, y, cellType) {
 
 function dropFood() {
   var emptyCells = grid.length - snake.length;
-  if (emptyCells === 0) {
-    return;
-  }
+  if (emptyCells === 0) return;
   var dropCounter = Math.floor(Math.random() * emptyCells);
   for (var i = 0; i < grid.length; i++) {
-    if (grid[i] === SNAKE_CELL) {
-      continue;
-    }
+    if (grid[i] === SNAKE_CELL) continue;
     if (dropCounter === 0) {
       grid[i] = FOOD_CELL;
       break;
@@ -292,7 +254,6 @@ function changeDirection(newDir) {
   var lastDir = moveQueue[0] || currentDirection;
   var opposite = newDir.x + lastDir.x === 0 && newDir.y + lastDir.y === 0;
   if (!opposite) {
-    // Process moves in a queue to prevent multiple direction changes per tick.
     moveQueue.unshift(newDir);
   }
   hasMoved = true;
@@ -300,9 +261,7 @@ function changeDirection(newDir) {
 
 function drawMaxScore() {
   var maxScore = localStorage.maxScore;
-  if (maxScore == null) {
-    return;
-  }
+  if (maxScore == null) return;
 
   var maxScorePoints = maxScore == 1 ? '1 point' : maxScore + ' points'
   var maxScoreGrid = localStorage.maxScoreGrid;
@@ -317,16 +276,13 @@ function drawMaxScore() {
   };
 }
 
-// Expands the high score details if collapsed. Only done when beating the
-// highest score, to grab the player's attention.
 function showMaxScore() {
   if ($('#max-score-container.expanded')) return
   $('#max-score-container .expand-btn').click();
 }
 
 function shareScore(scorePoints, grid) {
-  var message = '|' + grid + '| Got ' + scorePoints +
-    ' playing this stupid snake game on the browser URL!';
+  var message = '|' + grid + '| Got ' + scorePoints + ' playing this URL snake game!';
   var url = $('link[rel=canonical]').href;
   if (navigator.share) {
     navigator.share({text: message, url: url});
@@ -344,27 +300,12 @@ function showShareNote(message) {
   setTimeout(function () { note.classList.add("invisible") }, 1000);
 }
 
-// Super hacky function to pick a suitable character to replace the empty
-// Braille character (u+2800) when the browser escapes whitespace on the URL.
-// We want to pick a character that's close in width to the empty Braille symbol
-// —so the game doesn't stutter horizontally—, and also pick something that's
-// not too visually noisy. So we actually measure how wide and how "dark" some
-// candidate characters are when rendered by the browser (using a canvas) and
-// pick the first that passes both criteria.
 function pickWhitespaceReplacementChar() {
   var candidates = [
-    // U+0ADF is part of the Gujarati Unicode blocks, but it doesn't have an
-    // associated glyph. For some reason, Chrome renders is as totally blank and
-    // almost the same size as the Braille empty character, but it doesn't
-    // escape it on the address bar URL, so this is the perfect replacement
-    // character. This behavior of Chrome is probably a bug, and might be
-    // changed at any time, and in other browsers like Firefox this character is
-    // rendered with an ugly "undefined" glyph, so it'll get filtered out by the
-    // width or the "blankness" check in either of those cases.
-    ['૟', 'strange symbols'],
-    // U+27CB Mathematical Rising Diagonal, not a great replacement for
-    // whitespace, but is close to the correct size and blank enough.
-    ['⟋', 'some weird slashes']
+    ['\u00A0', 'non-breaking spaces'], // Much cleaner than / or slashes
+    ['\u1680', 'ogham space marks'],
+    ['\u2004', 'three-per-em spaces'],
+    ['૟', 'strange symbols']
   ];
 
   var N = 5;
@@ -377,28 +318,24 @@ function pickWhitespaceReplacementChar() {
     var char = candidates[i][0];
     var str = char.repeat(N);
     var width = ctx.measureText(str).width;
-    var similarWidth = Math.abs(targetWidth - width) / targetWidth <= 0.1;
+    var similarWidth = Math.abs(targetWidth - width) / targetWidth <= 0.15;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillText(str, 0, 30);
-    var pixelData = ctx.getImageData(0, 0, width, 30).data;
+    var pixelData = ctx.getImageData(0, 0, Math.max(width, 1), 30).data;
     var totalPixels = pixelData.length / 4;
     var coloredPixels = 0;
     for (var j = 0; j < totalPixels; j++) {
-      var alpha = pixelData[j * 4 + 3];
-      if (alpha != 0) {
-        coloredPixels++;
-      }
+      if (pixelData[j * 4 + 3] != 0) coloredPixels++;
     }
-    var notTooDark = coloredPixels / totalPixels < 0.15;
+    var notTooDark = coloredPixels / totalPixels < 0.10;
 
     if (similarWidth && notTooDark) {
       return candidates[i];
     }
   }
 
-  // Fallback to a safe U+2591 Light Shade.
-  return ['░', 'some kind of "fog"'];
+  return ['_', 'underscores']; // Last resort for visibility
 }
 
 var $ = document.querySelector.bind(document);
